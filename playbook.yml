@@ -189,8 +189,15 @@
         state: directory
         mode: "0755"
 
-    - name: copy kubeconfig file
-      shell: sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+    # - name: copy kubeconfig file
+    #   shell: sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+    - name: Copy kubeconfig file
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: "{{ ansible_env.HOME }}/.kube/config"
+        owner: "{{ ansible_user }}"
+        mode: '0644'
+        remote_src: yes
 
     - name: set the correct permission on kubeconfig file
       shell: sudo chown $(id -u):$(id -g) $HOME/.kube/config
@@ -216,11 +223,12 @@
   hosts: workers
   become: true
   tasks:
-    - name: Check if node is already part of the cluster
-      shell: "kubectl get node {{ ansible_fqdn }} --no-headers"
-      register: kubectl_get_node
-      ignore_errors: true
+  - name: Check if kubelet configuration file exists (node already joined)
+    stat:
+      path: /etc/kubernetes/kubelet.conf
+    register: kubelet_config
 
-    - name: Add worker nodes to the cluster if not already joined
-      shell: "sudo {{ hostvars['control_plane'].join_node }}"
-      when: kubectl_get_node.rc != 0
+  - name: Add worker nodes to the cluster if not already joined
+    shell: "sudo {{ hostvars['control_plane'].join_node }}"
+    when: not kubelet_config.stat.exists
+
