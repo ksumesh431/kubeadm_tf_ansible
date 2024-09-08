@@ -6,6 +6,6 @@ output "worker_nodes_ip" {
   value = join("", aws_instance.kubeadm_demo_worker_nodes[*].public_ip)
 }
 
-# output "ami_id_from_data" {
-#   value = data.aws_ami.ubuntu.id
-# }
+output "ami_id_from_data" {
+  value = data.aws_ami.ubuntu.id
+}
