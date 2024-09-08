@@ -5,9 +5,9 @@ variable "vpc_cidr_block" {
 }
 
 variable "ubuntu_ami" {
-  type = string
+  type        = string
   description = "the AMI ID of our linux instance"
-  default = "ami-053b0d53c279acc90"
+  default     = "ami-053b0d53c279acc90"
 }
 
 

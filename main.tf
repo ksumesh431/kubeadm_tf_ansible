@@ -1,15 +1,15 @@
 terraform {
   required_providers {
     aws = {
-      source = "hashicorp/aws"
+      source  = "hashicorp/aws"
       version = "5.4.0"
     }
     tls = {
-      source = "hashicorp/tls"
+      source  = "hashicorp/tls"
       version = "4.0.4"
     }
     ansible = {
-      source = "ansible/ansible"
+      source  = "ansible/ansible"
       version = "1.3.0"
     }
 
@@ -20,35 +20,44 @@ provider "aws" {
   region = "us-east-1"
 }
 
+resource "null_resource" "ansible_pre_task" {
+  provisioner "local-exec" {
+    command     = file("${path.module}/check_ansible.sh")
+    interpreter = ["/bin/bash", "-c"]
+  }
+}
+
 resource "aws_vpc" "kubeadm_demo_vpc" {
 
-  cidr_block = var.vpc_cidr_block
+  cidr_block           = var.vpc_cidr_block
   enable_dns_hostnames = true
 
   tags = {
     # NOTE: very important to use an uppercase N to set the name in the console
-    Name = "kubeadm_demo_vpc"
+    Name                               = "kubeadm_demo_vpc"
     "kubernetes.io/cluster/kubernetes" = "owned"
   }
-  
+  depends_on = [null_resource.ansible_pre_task]
+
 }
 
 resource "aws_subnet" "kubeadm_demo_subnet" {
 
-  vpc_id = aws_vpc.kubeadm_demo_vpc.id
-  cidr_block = "10.0.1.0/24"
+  vpc_id                  = aws_vpc.kubeadm_demo_vpc.id
+  cidr_block              = "10.0.1.0/24"
   map_public_ip_on_launch = true
 
-  tags = { 
+  tags = {
     Name = "kubadm_demo_public_subnet"
   }
-  
+  depends_on = [null_resource.ansible_pre_task]
+
 }
 
 resource "aws_internet_gateway" "kubeadm_demo_igw" {
   vpc_id = aws_vpc.kubeadm_demo_vpc.id
 
-  tags = { 
+  tags = {
     Name = "Kubeadm Demo Internet GW"
   }
 
@@ -57,7 +66,7 @@ resource "aws_internet_gateway" "kubeadm_demo_igw" {
 resource "aws_route_table" "kubeadm_demo_routetable" {
   vpc_id = aws_vpc.kubeadm_demo_vpc.id
 
-  route { 
+  route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.kubeadm_demo_igw.id
   }
@@ -69,7 +78,7 @@ resource "aws_route_table" "kubeadm_demo_routetable" {
 }
 
 resource "aws_route_table_association" "kubeadm_demo_route_association" {
-  subnet_id = aws_subnet.kubeadm_demo_subnet.id
+  subnet_id      = aws_subnet.kubeadm_demo_subnet.id
   route_table_id = aws_route_table.kubeadm_demo_routetable.id
 }
 
@@ -81,49 +90,49 @@ resource "aws_security_group" "kubeadm_demo_sg_flannel" {
 
   ingress {
     description = "flannel overlay backend"
-    protocol = "udp"
-    from_port = 8285
-    to_port = 8285
+    protocol    = "udp"
+    from_port   = 8285
+    to_port     = 8285
     cidr_blocks = ["0.0.0.0/0"]
   }
-  
+
   ingress {
     description = "flannel vxlan backend"
-    protocol = "udp"
-    from_port = 8472
-    to_port =  8472
+    protocol    = "udp"
+    from_port   = 8472
+    to_port     = 8472
     cidr_blocks = ["0.0.0.0/0"]
   }
-  
+
 }
 
 resource "aws_security_group" "kubadm_demo_sg_common" {
   name = "common-ports"
-  tags = { 
+  tags = {
     Name = "common ports"
   }
-  
+
   ingress {
     description = "Allow SSH"
-    protocol = "tcp"
-    from_port = 22
-    to_port = 22
+    protocol    = "tcp"
+    from_port   = 22
+    to_port     = 22
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
     description = "Allow HTTP"
-    protocol = "tcp"
-    from_port = 80
-    to_port = 80 
+    protocol    = "tcp"
+    from_port   = 80
+    to_port     = 80
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
     description = "Allow HTTPS"
-    protocol = "tcp"
-    from_port = 443
-    to_port = 443
+    protocol    = "tcp"
+    from_port   = 443
+    to_port     = 443
     cidr_blocks = ["0.0.0.0/0"]
   }
 
@@ -140,45 +149,45 @@ resource "aws_security_group" "kubeadm_demo_sg_control_plane" {
   name = "kubeadm-control-plane security group"
   ingress {
     description = "API Server"
-    protocol = "tcp"
-    from_port = 6443
-    to_port = 6443
+    protocol    = "tcp"
+    from_port   = 6443
+    to_port     = 6443
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
     description = "Kubelet API"
-    protocol = "tcp"
-    from_port = 2379
-    to_port = 2380
+    protocol    = "tcp"
+    from_port   = 2379
+    to_port     = 2380
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
     description = "etcd server client API"
-    protocol = "tcp"
-    from_port = 10250
-    to_port = 10250
+    protocol    = "tcp"
+    from_port   = 10250
+    to_port     = 10250
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
     description = "Kube Scheduler"
-    protocol = "tcp"
-    from_port = 10259
-    to_port = 10259
+    protocol    = "tcp"
+    from_port   = 10259
+    to_port     = 10259
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
     description = "Kube Contoller Manager"
-    protocol = "tcp"
-    from_port = 10257
-    to_port = 10257
+    protocol    = "tcp"
+    from_port   = 10257
+    to_port     = 10257
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { 
+  tags = {
     Name = "Control Plane SG"
   }
 }
@@ -189,34 +198,34 @@ resource "aws_security_group" "kubeadm_demo_sg_worker_nodes" {
 
   ingress {
     description = "kubelet API"
-    protocol = "tcp"
-    from_port = 10250
-    to_port = 10250
+    protocol    = "tcp"
+    from_port   = 10250
+    to_port     = 10250
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
     description = "NodePort services"
-    protocol = "tcp"
-    from_port = 30000
-    to_port = 32767
+    protocol    = "tcp"
+    from_port   = 30000
+    to_port     = 32767
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { 
+  tags = {
     Name = "Worker Nodes SG"
   }
-  
+
 }
 
 resource "tls_private_key" "kubadm_demo_private_key" {
-  
+
   algorithm = "RSA"
   rsa_bits  = 4096
 
-#   provisioner "local-exec" { # Create a "pubkey.pem" to your computer!!
-#     command = "echo '${self.public_key_pem}' > ./pubkey.pem"
-#   }
+  #   provisioner "local-exec" { # Create a "pubkey.pem" to your computer!!
+  #     command = "echo '${self.public_key_pem}' > ./pubkey.pem"
+  #   }
 
   provisioner "local-exec" { # Create a "pubkey.pem" to your computer!!
     command = <<EOT
@@ -229,12 +238,12 @@ resource "tls_private_key" "kubadm_demo_private_key" {
 }
 
 resource "aws_key_pair" "kubeadm_demo_key_pair" {
-  key_name = var.keypair_name
+  key_name   = var.keypair_name
   public_key = tls_private_key.kubadm_demo_private_key.public_key_openssh
 
-#   provisioner "local-exec" { # Create a "myKey.pem" to your computer!!
-#     command = "echo '${tls_private_key.kubadm_demo_private_key.private_key_pem}' > ./private-key.pem"
-#   }
+  #   provisioner "local-exec" { # Create a "myKey.pem" to your computer!!
+  #     command = "echo '${tls_private_key.kubadm_demo_private_key.private_key_pem}' > ./private-key.pem"
+  #   }
   provisioner "local-exec" { # Create a "myKey.pem" to your computer!!
     command = <<EOT
       rm ./private-key.pem
@@ -242,13 +251,13 @@ resource "aws_key_pair" "kubeadm_demo_key_pair" {
       chmod 600 ./private-key.pem
     EOT
   }
-  
+
 }
 
 resource "aws_instance" "kubeadm_demo_control_plane" {
-  ami = var.ubuntu_ami
-  instance_type = "t2.medium"
-  key_name = aws_key_pair.kubeadm_demo_key_pair.key_name
+  ami                         = var.ubuntu_ami
+  instance_type               = "t2.medium"
+  key_name                    = aws_key_pair.kubeadm_demo_key_pair.key_name
   associate_public_ip_address = true
   security_groups = [
     aws_security_group.kubadm_demo_sg_common.name,
@@ -265,9 +274,9 @@ resource "aws_instance" "kubeadm_demo_control_plane" {
     Role = "Control plane node"
   }
 
-#   provisioner "local-exec" {
-#     command = "echo 'master ${self.public_ip}' >> ./files/hosts"
-#   }
+  #   provisioner "local-exec" {
+  #     command = "echo 'master ${self.public_ip}' >> ./files/hosts"
+  #   }
 
 }
 
@@ -275,7 +284,7 @@ resource "null_resource" "add_master_ip_to_hosts" {
   provisioner "local-exec" {
     command = <<EOT
       set -e  # Exit immediately if a command fails
-      sleep 5
+      sleep 15
       mkdir -p ./files
       touch ./files/hosts
       echo "" > ./files/hosts
@@ -289,10 +298,10 @@ resource "null_resource" "add_master_ip_to_hosts" {
 }
 
 resource "aws_instance" "kubeadm_demo_worker_nodes" {
-  count = var.worker_nodes_count
-  ami = var.ubuntu_ami
-  instance_type = "t2.micro"
-  key_name = aws_key_pair.kubeadm_demo_key_pair.key_name
+  count                       = var.worker_nodes_count
+  ami                         = var.ubuntu_ami
+  instance_type               = "t2.micro"
+  key_name                    = aws_key_pair.kubeadm_demo_key_pair.key_name
   associate_public_ip_address = true
   security_groups = [
     aws_security_group.kubeadm_demo_sg_flannel.name,
@@ -309,10 +318,10 @@ resource "aws_instance" "kubeadm_demo_worker_nodes" {
     Role = "Worker node"
   }
 
-#   provisioner "local-exec" {
-#     command = "echo 'worker-${count.index} ${self.public_ip}' >> ./files/hosts"
-#   }
-  
+  #   provisioner "local-exec" {
+  #     command = "echo 'worker-${count.index} ${self.public_ip}' >> ./files/hosts"
+  #   }
+
 }
 
 resource "null_resource" "add_worker_ip_to_hosts" {
@@ -321,7 +330,7 @@ resource "null_resource" "add_worker_ip_to_hosts" {
   provisioner "local-exec" {
     command = <<EOT
       set -e  # Exit immediately if a command fails
-      sleep 5
+      sleep 15 
       echo 'worker-${count.index} ${aws_instance.kubeadm_demo_worker_nodes[count.index].public_ip}' >> ./files/hosts
       ssh-keyscan -H ${aws_instance.kubeadm_demo_worker_nodes[count.index].public_ip} >> ~/.ssh/known_hosts
     EOT
@@ -335,13 +344,13 @@ resource "ansible_host" "kubadm_demo_control_plane_host" {
   depends_on = [
     aws_instance.kubeadm_demo_control_plane
   ]
-  name = "control_plane"
+  name   = "control_plane"
   groups = ["master"]
   variables = {
-    ansible_user = "ubuntu"
-    ansible_host = aws_instance.kubeadm_demo_control_plane.public_ip
+    ansible_user                 = "ubuntu"
+    ansible_host                 = aws_instance.kubeadm_demo_control_plane.public_ip
     ansible_ssh_private_key_file = "./private-key.pem"
-    node_hostname = "master"
+    node_hostname                = "master"
   }
 }
 
@@ -349,13 +358,25 @@ resource "ansible_host" "kubadm_demo_worker_nodes_host" {
   depends_on = [
     aws_instance.kubeadm_demo_worker_nodes
   ]
-  count = 2
-  name = "worker-${count.index}"
+  count  = 2
+  name   = "worker-${count.index}"
   groups = ["workers"]
   variables = {
-    node_hostname = "worker-${count.index}"
-    ansible_user = "ubuntu"
-    ansible_host = aws_instance.kubeadm_demo_worker_nodes[count.index].public_ip
+    node_hostname                = "worker-${count.index}"
+    ansible_user                 = "ubuntu"
+    ansible_host                 = aws_instance.kubeadm_demo_worker_nodes[count.index].public_ip
     ansible_ssh_private_key_file = "./private-key.pem"
   }
+}
+
+resource "null_resource" "run_ansible" {
+
+  provisioner "local-exec" {
+    command = "ansible-playbook -i inventory.yml playbook.yml"
+  }
+
+  # Add explicit dependencies on key resources if needed
+  depends_on = [
+    null_resource.ansible_pre_task, ansible_host.kubadm_demo_control_plane_host, ansible_host.kubadm_demo_worker_nodes_host, null_resource.add_master_ip_to_hosts, null_resource.add_worker_ip_to_hosts, tls_private_key.kubadm_demo_private_key, aws_key_pair.kubeadm_demo_key_pair
+  ]
 }
